@@ -73,7 +73,15 @@ defmodule Ophion.IRCv3.Parser do
       if String.contains?(data, ":") do
         [head, tail] = String.split(data, ":", parts: 2)
 
-        (head |> String.replace_trailing(" ", "") |> String.split(" ")) ++ [tail]
+        parts =
+          head
+          |> String.trim_trailing()
+          |> case do
+            "" -> []
+            s -> String.split(s, " ")
+          end
+
+        parts ++ [tail]
       else
         String.split(data, " ")
       end
