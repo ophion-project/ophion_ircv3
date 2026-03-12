@@ -44,6 +44,16 @@ defmodule Ophion.IRCv3.Parser.Test do
       assert msg.verb == "INFO"
       assert msg.params == []
     end
+
+    test "it parses source-less messages with a compound parameter" do
+      message = "PING :eshmaki.me"
+
+      {:ok, %Message{} = msg} = Parser.parse(message)
+
+      assert msg.source == nil
+      assert msg.verb == "PING"
+      assert msg.params == ["eshmaki.me"]
+    end
   end
 
   describe "message tags -" do
