@@ -39,7 +39,7 @@ defmodule Ophion.IRCv3.Parser do
     end
   end
 
-  defp parse(%Message{source: nil} = msg, ":" <> data) do
+  defp parse(%Message{source: nil, verb: nil} = msg, ":" <> data) do
     with [source, rest] <- String.split(data, " ", parts: 2) do
       msg = Map.put(msg, :source, source)
 
