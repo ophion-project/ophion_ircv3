@@ -3,37 +3,50 @@ defmodule Ophion.IRCv3.Parser do
 
   alias Ophion.IRCv3.Message
 
-  defp unescape_value(value) when is_binary(value) do
+  defp unescape_value(nil), do: nil
+  defp unescape_value(value) do
     value
+    |> String.replace("\\\\", "\\")
+    |> String.replace("\\:", ";")
     |> String.replace("\\s", " ")
     |> String.replace("\\r", "\r")
     |> String.replace("\\n", "\n")
-    |> String.replace("\\:", ";")
-    |> String.replace("\\\\", "\\")
   end
 
-  defp unescape_value(_), do: nil
+  defp parse_params(data) do
+    data
+    |> String.trim_leading()
+    |> parse_params([])
+  end
+
+  defp parse_params("", acc), do: Enum.reverse(acc)
+
+  defp parse_params(":" <> trailing, acc), do: Enum.reverse([trailing | acc])
+
+  defp parse_params(data, acc) do
+    case String.split(data, " ", parts: 2) do
+      [param] ->
+        Enum.reverse([param | acc])
+
+      [param, rest] ->
+        parse_params(String.trim_leading(rest), [param | acc])
+    end
+  end
 
   defp parse(%Message{} = msg, "@" <> data) do
-    with [tags, rest] <- String.split(data, " ", parts: 2),
-         tags <- String.split(tags, ";") do
+    with [tags, rest] <- String.split(data, " ", parts: 2) do
       tags =
         tags
+        |> String.split(";")
         |> Enum.map(fn tag ->
-          cond do
-            String.contains?(tag, "=") ->
-              [key, value] = String.split(tag, "=", parts: 2)
-              {key, unescape_value(value)}
-
-            true ->
-              {tag, nil}
+          case String.split(tag, "=", parts: 2) do
+            [key, value] -> {key, unescape_value(value)}
+            [key] -> {key, nil}
           end
         end)
         |> Enum.into(%{})
 
-      msg = Map.put(msg, :tags, tags)
-
-      parse(msg, rest)
+      parse(%{msg | tags: tags}, rest)
     else
       [_tags] -> {:error, :invalid_message}
     end
@@ -41,9 +54,7 @@ defmodule Ophion.IRCv3.Parser do
 
   defp parse(%Message{source: nil, verb: nil} = msg, ":" <> data) do
     with [source, rest] <- String.split(data, " ", parts: 2) do
-      msg = Map.put(msg, :source, source)
-
-      parse(msg, rest)
+      parse(%{msg | source: source}, rest)
     else
       [_source] -> {:error, :invalid_message}
     end
@@ -51,17 +62,10 @@ defmodule Ophion.IRCv3.Parser do
 
   defp parse(%Message{verb: nil} = msg, data) do
     with [verb, rest] <- String.split(data, " ", parts: 2) do
-      msg = Map.put(msg, :verb, verb)
-
-      parse(msg, rest)
+      parse(%{msg | verb: verb}, rest)
     else
       [verb] when byte_size(verb) > 0 ->
-        msg =
-          msg
-          |> Map.put(:verb, verb)
-          |> Map.put(:params, [])
-
-        {:ok, msg}
+        {:ok, %{msg | verb: verb, params: []}}
 
       [_empty] ->
         {:error, :invalid_message}
@@ -69,26 +73,7 @@ defmodule Ophion.IRCv3.Parser do
   end
 
   defp parse(%Message{verb: v} = msg, data) when is_binary(v) do
-    pieces =
-      if String.contains?(data, ":") do
-        [head, tail] = String.split(data, ":", parts: 2)
-
-        parts =
-          head
-          |> String.trim_trailing()
-          |> case do
-            "" -> []
-            s -> String.split(s, " ")
-          end
-
-        parts ++ [tail]
-      else
-        String.split(data, " ")
-      end
-
-    msg = Map.put(msg, :params, pieces)
-
-    {:ok, msg}
+    {:ok, %{msg | params: parse_params(data)}}
   end
 
   defp parse(%Message{} = _msg, _), do: {:error, :invalid_message}
