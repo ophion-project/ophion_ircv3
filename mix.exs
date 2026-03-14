@@ -4,7 +4,7 @@ defmodule Ophion.IRCv3.MixProject do
   def project do
     [
       app: :ophion_ircv3,
-      version: "0.1.2",
+      version: "0.1.3",
       elixir: "~> 1.10",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
