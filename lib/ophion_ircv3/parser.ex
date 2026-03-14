@@ -4,6 +4,7 @@ defmodule Ophion.IRCv3.Parser do
   alias Ophion.IRCv3.Message
 
   defp unescape_value(nil), do: nil
+
   defp unescape_value(value) do
     value
     |> String.replace("\\\\", "\\")

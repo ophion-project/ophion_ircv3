@@ -17,16 +17,13 @@ defmodule Ophion.IRCv3.Composer do
 
   def escape_value(_), do: nil
 
-  defp tag([key]), do: [key]
-  defp tag([key, nil]), do: [key]
-  defp tag(tval) when is_list(tval), do: [Enum.join(tval, "=")]
-  defp tag(_), do: []
+  defp tag_part({key, nil}) when is_binary(key), do: key
+  defp tag_part({key, value}) when is_binary(key) and is_binary(value), do: key <> "=" <> value
 
   defp tags(input, %Message{tags: %{} = tags}) when map_size(tags) > 0 do
-    tag_parts = 
-      Enum.reduce(tags, [], fn ({key, value}, acc) ->
-        acc ++ tag([key, escape_value(value)])
-      end)
+    tag_parts =
+      tags
+      |> Enum.map(fn {key, value} -> tag_part({key, escape_value(value)}) end)
       |> Enum.join(";")
 
     input ++ ["@" <> tag_parts]
