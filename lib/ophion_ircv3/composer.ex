@@ -40,18 +40,25 @@ defmodule Ophion.IRCv3.Composer do
   defp verb(input, %Message{verb: verb}) when is_binary(verb), do: input ++ [verb]
 
   defp params(input, %Message{params: params}) when length(params) > 0 do
-    {last_param, composed_params} = List.pop_at(params, -1)
+    {last_param, middle_params} = List.pop_at(params, -1)
 
-    composed_params =
-      if String.contains?(last_param, " ") do
-        composed_params ++ [":" <> last_param]
+    last_param =
+      if trailing_param?(last_param) do
+        ":" <> last_param
       else
-        composed_params ++ [last_param]
+        last_param
       end
 
-    input ++ composed_params
+    input ++ middle_params ++ [last_param]
   end
+
   defp params(input, _), do: input
+
+  defp trailing_param?(param) when is_binary(param) do
+    param == "" or
+      String.starts_with?(param, ":") or
+      String.contains?(param, " ")
+  end
 
   def compose(%Message{} = msg) do
     with :ok <- Message.validate(msg) do
